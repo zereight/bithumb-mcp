@@ -8,9 +8,11 @@ import {
 	McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
+import { RSI } from 'technicalindicators'; // Import RSI
 
-// Bithumb Public API URL
-const BITHUMB_API_URL = 'https://api.bithumb.com/public/ticker';
+// Bithumb Public API URLs
+const BITHUMB_TICKER_URL = 'https://api.bithumb.com/public/ticker';
+const BITHUMB_CANDLESTICK_URL = 'https://api.bithumb.com/public/candlestick';
 
 // Type guard for validating get_ticker arguments
 const isValidTickerArgs = (
@@ -21,6 +23,10 @@ const isValidTickerArgs = (
 	typeof args.order_currency === 'string' &&
 	(args.payment_currency === undefined || typeof args.payment_currency === 'string');
 
+// Interface for Candlestick data point
+// [timestamp, open, close, high, low, volume]
+type CandlestickData = [number, string, string, string, string, string];
+
 class BithumbServer {
 	private server: Server;
 	private axiosInstance;
@@ -29,7 +35,7 @@ class BithumbServer {
 		this.server = new Server(
 			{
 				name: 'bithumb-mcp-server',
-				version: '0.1.0',
+				version: '0.1.1', // Incremented version
 			},
 			{
 				capabilities: {
@@ -38,7 +44,7 @@ class BithumbServer {
 			}
 		);
 
-		this.axiosInstance = axios.create();
+		this.axiosInstance = axios.create({ timeout: 10000 }); // Added timeout
 
 		this.setupToolHandlers();
 
@@ -50,8 +56,44 @@ class BithumbServer {
 		});
 	}
 
+	// Function to fetch candlestick data
+	private async getCandlestickData(orderCurrency: string, paymentCurrency: string, interval: string): Promise<CandlestickData[]> {
+		const path = `${orderCurrency}_${paymentCurrency}/${interval}`; // e.g., BTC_KRW/4h
+		try {
+			const response = await this.axiosInstance.get(`${BITHUMB_CANDLESTICK_URL}/${path}`);
+			if (response.data.status !== '0000') {
+				throw new Error(`Bithumb Candlestick API error: ${response.data.message || 'Unknown error'} (Status: ${response.data.status})`);
+			}
+			// Ensure data is an array before returning
+			if (!Array.isArray(response.data.data)) {
+				throw new Error('Invalid data format received from Bithumb Candlestick API');
+			}
+			return response.data.data as CandlestickData[];
+		} catch (error) {
+			if (axios.isAxiosError(error)) {
+				const errorMessage = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+				throw new Error(`Bithumb Candlestick API request failed: ${errorMessage}`);
+			}
+			throw error; // Re-throw other errors
+		}
+	}
+
+	// Function to calculate RSI
+	private calculateRSI(data: CandlestickData[], period: number = 14): number | null {
+		if (data.length < period + 1) { // Need at least period + 1 data points
+			return null;
+		}
+		const closingPrices = data.map(candle => parseFloat(candle[2])).filter(price => !isNaN(price)); // Extract and validate closing prices
+		if (closingPrices.length < period + 1) {
+			return null; // Not enough valid closing prices
+		}
+		const rsiResult = RSI.calculate({ period, values: closingPrices });
+		return rsiResult.length > 0 ? rsiResult[rsiResult.length - 1] : null; // Return the latest RSI value
+	}
+
+
 	private setupToolHandlers() {
-		// Expose the get_ticker tool
+		// Expose tools
 		this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
 			tools: [
 				{
@@ -73,75 +115,113 @@ class BithumbServer {
 						required: ['order_currency'],
 					},
 				},
+				{ // New tool definition
+					name: 'find_lowest_rsi_among_top_traded',
+					description: 'Finds the coin with the lowest 4-hour RSI among the top 10 most traded coins (KRW market) in the last 24 hours.',
+					inputSchema: { // No input parameters needed
+						type: 'object',
+						properties: {},
+						required: [],
+					},
+				},
 			],
 		}));
 
-		// Handle calls to the get_ticker tool
+		// Handle tool calls
 		this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-			if (request.params.name !== 'get_ticker') {
-				throw new McpError(
-					ErrorCode.MethodNotFound,
-					`Unknown tool: ${request.params.name}`
-				);
-			}
-
-			if (!isValidTickerArgs(request.params.arguments)) {
-				throw new McpError(
-					ErrorCode.InvalidParams,
-					'Invalid ticker arguments'
-				);
-			}
-
-			const orderCurrency = request.params.arguments.order_currency.toUpperCase();
-			const paymentCurrency = (request.params.arguments.payment_currency || 'KRW').toUpperCase();
-			const path = `${orderCurrency}_${paymentCurrency}`; // e.g., BTC_KRW or ALL_KRW
-
-			try {
-				const response = await this.axiosInstance.get(`${BITHUMB_API_URL}/${path}`);
-
-				// Check Bithumb API status
-				if (response.data.status !== '0000') {
-					return {
-						content: [
-							{
-								type: 'text',
-								text: `Bithumb API error: ${response.data.message || 'Unknown error'} (Status: ${response.data.status})`,
-							},
-						],
-						isError: true,
-					};
+			// --- get_ticker handler ---
+			if (request.params.name === 'get_ticker') {
+				if (!isValidTickerArgs(request.params.arguments)) {
+					throw new McpError(ErrorCode.InvalidParams, 'Invalid ticker arguments');
 				}
+				const orderCurrency = request.params.arguments.order_currency.toUpperCase();
+				const paymentCurrency = (request.params.arguments.payment_currency || 'KRW').toUpperCase();
+				const path = `${orderCurrency}_${paymentCurrency}`;
 
-				return {
-					content: [
-						{
-							type: 'text',
-							text: JSON.stringify(response.data.data, null, 2),
-						},
-					],
-				};
-			} catch (error) {
-				if (axios.isAxiosError(error)) {
-					// Handle network or other axios errors
-					const errorMessage = error.response?.data
-						? JSON.stringify(error.response.data)
-						: error.message;
-					return {
-						content: [
-							{
-								type: 'text',
-								text: `Bithumb API request failed: ${errorMessage}`,
-							},
-						],
-						isError: true,
-					};
+				try {
+					const response = await this.axiosInstance.get(`${BITHUMB_TICKER_URL}/${path}`);
+					if (response.data.status !== '0000') {
+						return {
+							content: [{ type: 'text', text: `Bithumb API error: ${response.data.message || 'Unknown error'} (Status: ${response.data.status})` }],
+							isError: true,
+						};
+					}
+					return { content: [{ type: 'text', text: JSON.stringify(response.data.data, null, 2) }] };
+				} catch (error) {
+					if (axios.isAxiosError(error)) {
+						const errorMessage = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+						return { content: [{ type: 'text', text: `Bithumb API request failed: ${errorMessage}` }], isError: true };
+					}
+					console.error('Unexpected error calling Bithumb Ticker API:', error);
+					throw new McpError(ErrorCode.InternalError, `Unexpected error: ${(error as Error).message}`);
 				}
-				// Handle unexpected errors
-				console.error('Unexpected error calling Bithumb API:', error);
-				throw new McpError(
-					ErrorCode.InternalError,
-					`Unexpected error: ${(error as Error).message}`
-				);
+			}
+			// --- find_lowest_rsi_among_top_traded handler ---
+			else if (request.params.name === 'find_lowest_rsi_among_top_traded') {
+				try {
+					// 1. Get all tickers
+					const tickerResponse = await this.axiosInstance.get(`${BITHUMB_TICKER_URL}/ALL_KRW`);
+					if (tickerResponse.data.status !== '0000') {
+						throw new Error(`Bithumb Ticker API error: ${tickerResponse.data.message || 'Unknown error'} (Status: ${tickerResponse.data.status})`);
+					}
+					const tickers = tickerResponse.data.data;
+					delete tickers.date; // Remove the date key
+
+					// 2. Filter KRW market and find top 10 by 24h trade value
+					const krwTickers = Object.entries(tickers)
+						.map(([symbol, data]: [string, any]) => ({
+							symbol,
+							tradeValue24H: parseFloat(data.acc_trade_value_24H || '0'),
+						}))
+						.filter(ticker => !isNaN(ticker.tradeValue24H)) // Ensure tradeValue is a number
+						.sort((a, b) => b.tradeValue24H - a.tradeValue24H)
+						.slice(0, 10);
+
+					if (krwTickers.length === 0) {
+						return { content: [{ type: 'text', text: 'Could not find any KRW market tickers.' }], isError: true };
+					}
+
+					// 3. Get candlestick data and calculate RSI for each top coin
+					let lowestRsi = Infinity;
+					let coinWithLowestRsi = '';
+					const rsiResults: { symbol: string; rsi: number | null }[] = [];
+
+					for (const ticker of krwTickers) {
+						try {
+							// Fetch enough data for RSI(14) - Bithumb API limit might apply, fetching last ~100 candles should be safe
+							const candlestickData = await this.getCandlestickData(ticker.symbol, 'KRW', '4h');
+							const rsi = this.calculateRSI(candlestickData, 14);
+							rsiResults.push({ symbol: ticker.symbol, rsi });
+
+							if (rsi !== null && rsi < lowestRsi) {
+								lowestRsi = rsi;
+								coinWithLowestRsi = ticker.symbol;
+							}
+						} catch (candleError) {
+							console.error(`Error fetching/calculating RSI for ${ticker.symbol}:`, candleError);
+							rsiResults.push({ symbol: ticker.symbol, rsi: null }); // Mark as error for this coin
+						}
+					}
+
+					if (coinWithLowestRsi === '') {
+						return { content: [{ type: 'text', text: 'Could not calculate RSI for any of the top 10 traded coins.' }], isError: true };
+					}
+
+					// 4. Return the result
+					const resultText = `Among the top 10 traded KRW market coins, ${coinWithLowestRsi} has the lowest 4-hour RSI: ${lowestRsi.toFixed(2)}.`;
+					const detailedResults = rsiResults.map(r => `${r.symbol}: ${r.rsi !== null ? r.rsi.toFixed(2) : 'Error'}`).join('\n');
+
+					return { content: [{ type: 'text', text: `${resultText}\n\nDetails:\n${detailedResults}` }] };
+
+				} catch (error) {
+					console.error('Error in find_lowest_rsi_among_top_traded:', error);
+					const errorMessage = (error instanceof Error) ? error.message : 'An unknown error occurred';
+					return { content: [{ type: 'text', text: `Error finding lowest RSI coin: ${errorMessage}` }], isError: true };
+				}
+			}
+			// --- Unknown tool handler ---
+			else {
+				throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
 			}
 		});
 	}
