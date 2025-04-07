@@ -23,9 +23,22 @@ const isValidTickerArgs = (
 	typeof args.order_currency === 'string' &&
 	(args.payment_currency === undefined || typeof args.payment_currency === 'string');
 
+// Type guard for validating find_lowest_rsi_among_top_traded arguments
+const isValidRsiArgs = (
+	args: any
+): args is { interval?: string } =>
+	typeof args === 'object' &&
+	args !== null &&
+	(args.interval === undefined || typeof args.interval === 'string');
+
+
 // Interface for Candlestick data point
 // [timestamp, open, close, high, low, volume]
 type CandlestickData = [number, string, string, string, string, string];
+
+// Allowed intervals for Bithumb Candlestick API
+const ALLOWED_INTERVALS = ['1m', '3m', '5m', '10m', '30m', '1h', '6h', '12h', '24h'];
+
 
 class BithumbServer {
 	private server: Server;
@@ -35,7 +48,7 @@ class BithumbServer {
 		this.server = new Server(
 			{
 				name: 'bithumb-mcp-server',
-				version: '0.1.1', // Incremented version
+				version: '0.1.2', // Incremented version
 			},
 			{
 				capabilities: {
@@ -58,7 +71,10 @@ class BithumbServer {
 
 	// Function to fetch candlestick data
 	private async getCandlestickData(orderCurrency: string, paymentCurrency: string, interval: string): Promise<CandlestickData[]> {
-		const path = `${orderCurrency}_${paymentCurrency}/${interval}`; // e.g., BTC_KRW/4h
+		if (!ALLOWED_INTERVALS.includes(interval)) {
+			throw new Error(`Invalid interval: ${interval}. Allowed intervals are: ${ALLOWED_INTERVALS.join(', ')}`);
+		}
+		const path = `${orderCurrency}_${paymentCurrency}/${interval}`; // e.g., BTC_KRW/1h
 		try {
 			const response = await this.axiosInstance.get(`${BITHUMB_CANDLESTICK_URL}/${path}`);
 			if (response.data.status !== '0000') {
@@ -115,13 +131,20 @@ class BithumbServer {
 						required: ['order_currency'],
 					},
 				},
-				{ // New tool definition
+				{ // Updated tool definition
 					name: 'find_lowest_rsi_among_top_traded',
-					description: 'Finds the coin with the lowest 4-hour RSI among the top 10 most traded coins (KRW market) in the last 24 hours.',
-					inputSchema: { // No input parameters needed
+					description: `Finds the coin with the lowest RSI among the top 10 most traded coins (KRW market) in the last 24 hours for a given interval. Allowed intervals: ${ALLOWED_INTERVALS.join(', ')}.`,
+					inputSchema: {
 						type: 'object',
-						properties: {},
-						required: [],
+						properties: {
+							interval: {
+								type: 'string',
+								description: `Candlestick interval (e.g., '1h', '4h', '24h'). Defaults to '4h'. Allowed: ${ALLOWED_INTERVALS.join(', ')}`,
+								default: '4h',
+								enum: ALLOWED_INTERVALS, // Add enum for validation
+							},
+						},
+						required: [], // No required parameters
 					},
 				},
 			],
@@ -158,6 +181,11 @@ class BithumbServer {
 			}
 			// --- find_lowest_rsi_among_top_traded handler ---
 			else if (request.params.name === 'find_lowest_rsi_among_top_traded') {
+				if (!isValidRsiArgs(request.params.arguments)) {
+					throw new McpError(ErrorCode.InvalidParams, 'Invalid RSI arguments');
+				}
+				const interval = request.params.arguments.interval || '4h'; // Use provided interval or default to 4h
+
 				try {
 					// 1. Get all tickers
 					const tickerResponse = await this.axiosInstance.get(`${BITHUMB_TICKER_URL}/ALL_KRW`);
@@ -188,8 +216,7 @@ class BithumbServer {
 
 					for (const ticker of krwTickers) {
 						try {
-							// Fetch enough data for RSI(14) - Bithumb API limit might apply, fetching last ~100 candles should be safe
-							const candlestickData = await this.getCandlestickData(ticker.symbol, 'KRW', '4h');
+							const candlestickData = await this.getCandlestickData(ticker.symbol, 'KRW', interval); // Use the interval parameter
 							const rsi = this.calculateRSI(candlestickData, 14);
 							rsiResults.push({ symbol: ticker.symbol, rsi });
 
@@ -198,25 +225,25 @@ class BithumbServer {
 								coinWithLowestRsi = ticker.symbol;
 							}
 						} catch (candleError) {
-							console.error(`Error fetching/calculating RSI for ${ticker.symbol}:`, candleError);
+							console.error(`Error fetching/calculating RSI for ${ticker.symbol} (${interval}):`, candleError);
 							rsiResults.push({ symbol: ticker.symbol, rsi: null }); // Mark as error for this coin
 						}
 					}
 
 					if (coinWithLowestRsi === '') {
-						return { content: [{ type: 'text', text: 'Could not calculate RSI for any of the top 10 traded coins.' }], isError: true };
+						return { content: [{ type: 'text', text: `Could not calculate RSI (${interval}) for any of the top 10 traded coins.` }], isError: true };
 					}
 
 					// 4. Return the result
-					const resultText = `Among the top 10 traded KRW market coins, ${coinWithLowestRsi} has the lowest 4-hour RSI: ${lowestRsi.toFixed(2)}.`;
+					const resultText = `Among the top 10 traded KRW market coins, ${coinWithLowestRsi} has the lowest ${interval} RSI: ${lowestRsi.toFixed(2)}.`;
 					const detailedResults = rsiResults.map(r => `${r.symbol}: ${r.rsi !== null ? r.rsi.toFixed(2) : 'Error'}`).join('\n');
 
 					return { content: [{ type: 'text', text: `${resultText}\n\nDetails:\n${detailedResults}` }] };
 
 				} catch (error) {
-					console.error('Error in find_lowest_rsi_among_top_traded:', error);
+					console.error(`Error in find_lowest_rsi_among_top_traded (${interval}):`, error);
 					const errorMessage = (error instanceof Error) ? error.message : 'An unknown error occurred';
-					return { content: [{ type: 'text', text: `Error finding lowest RSI coin: ${errorMessage}` }], isError: true };
+					return { content: [{ type: 'text', text: `Error finding lowest RSI coin (${interval}): ${errorMessage}` }], isError: true };
 				}
 			}
 			// --- Unknown tool handler ---
