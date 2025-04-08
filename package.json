@@ -20,8 +20,10 @@
   "description": "",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@types/query-string": "^6.2.0",
     "axios": "^1.6.2",
-    "crypto-js": "^4.1.1"
+    "crypto-js": "^4.1.1",
+    "query-string": "^9.1.1"
   },
   "devDependencies": {
     "@types/crypto-js": "^4.1.1",

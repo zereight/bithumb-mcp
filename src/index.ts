@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import axios from 'axios';
-import CryptoJS from 'crypto-js';
+// Import the new ApiBithumb class
+import ApiBithumb from './bitThumb/index.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -17,49 +17,10 @@ if (!API_KEY || !SECRET_KEY) {
   throw new Error('BITHUMB_API_KEY and BITHUMB_SECRET_KEY environment variables are required');
 }
 
-// 빗썸 API 호출 유틸리티
-class BithumbAPI {
-  private apiKey: string;
-  private secretKey: string;
-
-  constructor(apiKey: string, secretKey: string) {
-    this.apiKey = apiKey;
-    this.secretKey = secretKey;
-  }
-
-  private generateSignature(endpoint: string, nonce: number): string {
-    const message = `${endpoint}${nonce}`;
-    return CryptoJS.HmacSHA512(message, this.secretKey).toString(CryptoJS.enc.Hex);
-  }
-
-  async publicApi(endpoint: string, params = {}) {
-    const url = `https://api.bithumb.com/public${endpoint}`;
-    const response = await axios.get(url, { params });
-    return response.data;
-  }
-
-  async privateApi(endpoint: string, params = {}) {
-    const nonce = Date.now();
-    const signature = this.generateSignature(endpoint, nonce);
-    
-    const url = `https://api.bithumb.com${endpoint}`;
-    const response = await axios.post(url, null, {
-      headers: {
-        'Api-Key': this.apiKey,
-        'Api-Sign': signature,
-        'Api-Nonce': nonce.toString(),
-        'Content-Type': 'application/json'
-      },
-      params
-    });
-    return response.data;
-  }
-}
-
 // MCP 서버 클래스
 class BithumbMCPServer {
   private server: Server;
-  private bithumbApi: BithumbAPI;
+  private bithumbApi: ApiBithumb; // Use the imported ApiBithumb class
 
   constructor() {
     this.server = new Server(
@@ -75,9 +36,12 @@ class BithumbMCPServer {
       }
     );
 
-    this.bithumbApi = new BithumbAPI(API_KEY, SECRET_KEY);
+    // console.log('Bithumb API Key:', API_KEY); // Keep keys hidden for security
+    // console.log('Bithumb Secret Key:', SECRET_KEY);
+    // Initialize the new ApiBithumb class, providing the paymentCurrency
+    this.bithumbApi = new ApiBithumb(API_KEY, SECRET_KEY, 'KRW'); // Assuming KRW as default payment currency
     this.setupToolHandlers();
-    
+
     this.server.onerror = (error) => console.error('[Bithumb MCP Error]', error);
     process.on('SIGINT', async () => {
       await this.server.close();
@@ -105,7 +69,7 @@ class BithumbMCPServer {
         {
           name: 'get_balance',
           description: 'Get account balance',
-          inputSchema: { type: 'object' }
+          inputSchema: { type: 'object' } // No arguments needed for balance
         }
       ]
     }));
@@ -114,30 +78,34 @@ class BithumbMCPServer {
       try {
         switch (request.params.name) {
           case 'get_ticker':
-            const ticker = await this.bithumbApi.publicApi('/ticker', {
-              currency: request.params.arguments?.currency || 'BTC'
-            });
+            // Call the specific getTicker method from ApiBithumb
+            // Explicitly cast currency argument to string
+            const ticker = await this.bithumbApi.getTicker(
+              (request.params.arguments?.currency as string) || 'BTC'
+            );
             return {
               content: [{ type: 'text', text: JSON.stringify(ticker, null, 2) }]
             };
-            
+
           case 'get_balance':
-            const balance = await this.bithumbApi.privateApi('/info/balance');
+            // Call postBalance method from the new ApiBithumb class
+            // Pass 'ALL' to get balance for all currencies, or specify like 'BTC'
+            // The postBalance method expects the coin code as argument
+            const balance = await this.bithumbApi.postBalance('ALL');
             return {
               content: [{ type: 'text', text: JSON.stringify(balance, null, 2) }]
             };
-            
+
           default:
             throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
         }
-      } catch (error) {
-        if (axios.isAxiosError(error)) {
-          throw new McpError(
-            ErrorCode.InternalError,
-            `Bithumb API error: ${error.response?.data?.message || error.message}`
-          );
-        }
-        throw error;
+      } catch (error: any) { // Explicitly type error as any
+        // Handle potential errors from ApiBithumb which might not be Axios errors directly
+        // The ApiBithumb class already stringifies the error, so we can use error.message
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Bithumb API error: ${error.message}`
+        );
       }
     });
   }

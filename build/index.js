@@ -6,45 +6,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
-const axios_1 = __importDefault(require("axios"));
-const crypto_js_1 = __importDefault(require("crypto-js"));
+// Import the new ApiBithumb class
+const index_js_2 = __importDefault(require("./bitThumb/index.js"));
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 // 환경 변수 설정 확인 및 타입 강제
 const API_KEY = process.env.BITHUMB_API_KEY;
 const SECRET_KEY = process.env.BITHUMB_SECRET_KEY;
 if (!API_KEY || !SECRET_KEY) {
     throw new Error('BITHUMB_API_KEY and BITHUMB_SECRET_KEY environment variables are required');
-}
-// 빗썸 API 호출 유틸리티
-class BithumbAPI {
-    constructor(apiKey, secretKey) {
-        this.apiKey = apiKey;
-        this.secretKey = secretKey;
-    }
-    generateSignature(endpoint, nonce) {
-        const message = `${endpoint}${nonce}`;
-        return crypto_js_1.default.HmacSHA512(message, this.secretKey).toString(crypto_js_1.default.enc.Hex);
-    }
-    async publicApi(endpoint, params = {}) {
-        const url = `https://api.bithumb.com/public${endpoint}`;
-        const response = await axios_1.default.get(url, { params });
-        return response.data;
-    }
-    async privateApi(endpoint, params = {}) {
-        const nonce = Date.now();
-        const signature = this.generateSignature(endpoint, nonce);
-        const url = `https://api.bithumb.com${endpoint}`;
-        const response = await axios_1.default.post(url, null, {
-            headers: {
-                'Api-Key': this.apiKey,
-                'Api-Sign': signature,
-                'Api-Nonce': nonce.toString(),
-                'Content-Type': 'application/json'
-            },
-            params
-        });
-        return response.data;
-    }
 }
 // MCP 서버 클래스
 class BithumbMCPServer {
@@ -58,7 +27,10 @@ class BithumbMCPServer {
                 tools: {}
             }
         });
-        this.bithumbApi = new BithumbAPI(API_KEY, SECRET_KEY);
+        // console.log('Bithumb API Key:', API_KEY); // Keep keys hidden for security
+        // console.log('Bithumb Secret Key:', SECRET_KEY);
+        // Initialize the new ApiBithumb class, providing the paymentCurrency
+        this.bithumbApi = new index_js_2.default(API_KEY, SECRET_KEY, 'KRW'); // Assuming KRW as default payment currency
         this.setupToolHandlers();
         this.server.onerror = (error) => console.error('[Bithumb MCP Error]', error);
         process.on('SIGINT', async () => {
@@ -86,7 +58,7 @@ class BithumbMCPServer {
                 {
                     name: 'get_balance',
                     description: 'Get account balance',
-                    inputSchema: { type: 'object' }
+                    inputSchema: { type: 'object' } // No arguments needed for balance
                 }
             ]
         }));
@@ -94,14 +66,17 @@ class BithumbMCPServer {
             try {
                 switch (request.params.name) {
                     case 'get_ticker':
-                        const ticker = await this.bithumbApi.publicApi('/ticker', {
-                            currency: request.params.arguments?.currency || 'BTC'
-                        });
+                        // Call the specific getTicker method from ApiBithumb
+                        // Explicitly cast currency argument to string
+                        const ticker = await this.bithumbApi.getTicker(request.params.arguments?.currency || 'BTC');
                         return {
                             content: [{ type: 'text', text: JSON.stringify(ticker, null, 2) }]
                         };
                     case 'get_balance':
-                        const balance = await this.bithumbApi.privateApi('/info/balance');
+                        // Call postBalance method from the new ApiBithumb class
+                        // Pass 'ALL' to get balance for all currencies, or specify like 'BTC'
+                        // The postBalance method expects the coin code as argument
+                        const balance = await this.bithumbApi.postBalance('ALL');
                         return {
                             content: [{ type: 'text', text: JSON.stringify(balance, null, 2) }]
                         };
@@ -109,11 +84,10 @@ class BithumbMCPServer {
                         throw new types_js_1.McpError(types_js_1.ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
                 }
             }
-            catch (error) {
-                if (axios_1.default.isAxiosError(error)) {
-                    throw new types_js_1.McpError(types_js_1.ErrorCode.InternalError, `Bithumb API error: ${error.response?.data?.message || error.message}`);
-                }
-                throw error;
+            catch (error) { // Explicitly type error as any
+                // Handle potential errors from ApiBithumb which might not be Axios errors directly
+                // The ApiBithumb class already stringifies the error, so we can use error.message
+                throw new types_js_1.McpError(types_js_1.ErrorCode.InternalError, `Bithumb API error: ${error.message}`);
             }
         });
     }
