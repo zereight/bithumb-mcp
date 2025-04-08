@@ -8,6 +8,7 @@ const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 // Import the new ApiBithumb class
 const index_js_2 = __importDefault(require("./bitThumb/index.js"));
+// Import SDK types
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 // 환경 변수 설정 확인 및 타입 강제
 const API_KEY = process.env.BITHUMB_API_KEY;
@@ -27,8 +28,6 @@ class BithumbMCPServer {
                 tools: {}
             }
         });
-        // console.log('Bithumb API Key:', API_KEY); // Keep keys hidden for security
-        // console.log('Bithumb Secret Key:', SECRET_KEY);
         // Initialize the new ApiBithumb class, providing the paymentCurrency
         this.bithumbApi = new index_js_2.default(API_KEY, SECRET_KEY, 'KRW'); // Assuming KRW as default payment currency
         this.setupToolHandlers();
@@ -39,50 +38,330 @@ class BithumbMCPServer {
         });
     }
     setupToolHandlers() {
-        this.server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({
-            tools: [
-                {
-                    name: 'get_ticker',
-                    description: 'Get cryptocurrency ticker information',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {
-                            currency: {
-                                type: 'string',
-                                description: 'Cryptocurrency symbol (e.g. BTC, ETH)',
-                                default: 'BTC'
-                            }
-                        }
-                    }
-                },
-                {
-                    name: 'get_balance',
-                    description: 'Get account balance',
-                    inputSchema: { type: 'object' } // No arguments needed for balance
+        // Define tools based on ApiBithumb methods
+        // Use 'any[]' for the tools array type as ToolDefinition is not available
+        const tools = [
+            {
+                name: 'get_ticker',
+                description: 'Get cryptocurrency ticker information (Public)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        coinCode: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' }
+                    },
+                    required: ['coinCode']
                 }
-            ]
-        }));
+            },
+            {
+                name: 'get_orderbook',
+                description: 'Get order book information (Public)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        coinCode: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' }
+                    },
+                    required: ['coinCode']
+                }
+            },
+            {
+                name: 'get_transaction_history',
+                description: 'Get recent transaction history (Public)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        coinCode: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' }
+                    },
+                    required: ['coinCode']
+                }
+            },
+            {
+                name: 'get_assets_status',
+                description: 'Get asset deposit/withdrawal status (Public)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        orderCurrency: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' }
+                    },
+                    required: ['orderCurrency']
+                }
+            },
+            {
+                name: 'get_btci',
+                description: 'Get Bithumb Index (BTMI, BTAI) information (Public)',
+                inputSchema: { type: 'object' } // No parameters
+            },
+            {
+                name: 'get_candlestick',
+                description: 'Get Candlestick data (Public)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        orderCurrency: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' },
+                        paymentCurrency: { type: 'string', enum: ['KRW', 'BTC'], description: 'Payment currency (KRW or BTC)' }, // Assuming KRW/BTC based on standard usage
+                        chartIntervals: { type: 'string', enum: ['1m', '3m', '5m', '10m', '30m', '1h', '6h', '12h', '24h'], description: 'Chart interval' } // Assuming standard intervals
+                    },
+                    required: ['orderCurrency', 'paymentCurrency', 'chartIntervals']
+                }
+            },
+            {
+                name: 'post_account',
+                description: 'Get member account information and fees (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        coinCode: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' }
+                    },
+                    required: ['coinCode']
+                }
+            },
+            {
+                name: 'get_balance', // Renamed from postBalance for clarity, as it retrieves data
+                description: 'Get account balance (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        coinCode: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH) or ALL', default: 'ALL' }
+                    }
+                }
+            },
+            {
+                name: 'post_wallet_address',
+                description: 'Get member\'s coin deposit wallet address (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        coinCode: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)', default: 'BTC' }
+                    }
+                }
+            },
+            {
+                name: 'post_ticker_user',
+                description: 'Get member\'s recent virtual asset transaction information (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        orderCurrency: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' }
+                    },
+                    required: ['orderCurrency']
+                }
+            },
+            {
+                name: 'post_orders',
+                description: 'Get member\'s order details (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        order_currency: { type: 'string', description: 'Order currency symbol' },
+                        // payment_currency removed as it's not in IPostOrdersParams
+                        orderId: { type: 'string', description: 'Order ID (optional)' }, // Corrected name
+                        type: { type: 'string', enum: ['bid', 'ask'], description: 'Order type (bid or ask) (optional)' },
+                        count: { type: 'number', description: 'Number of orders to retrieve (optional, default: 100)' },
+                        after: { type: 'number', description: 'Retrieve orders after this timestamp (optional)' } // Corrected type and description
+                    },
+                    required: ['order_currency'] // Only require order_currency now
+                }
+            },
+            {
+                name: 'post_order_detail',
+                description: 'Get details of a specific member order (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        orderId: { type: 'string', description: 'Order ID' },
+                        orderCurrency: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' }
+                    },
+                    required: ['orderId', 'orderCurrency']
+                }
+            },
+            {
+                name: 'post_user_transactions',
+                description: 'Get member\'s transaction completion history (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        searchGb: { type: 'number', enum: [0, 1, 2, 3, 4, 5, 9], description: 'Search type (0: all, 1: buy complete, 2: sell complete, 3: withdrawal processing, 4: deposit, 5: withdrawal complete, 9: KRW deposit)' },
+                        orderCurrency: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' },
+                        offset: { type: 'number', description: 'Start index for retrieval (optional)' },
+                        count: { type: 'number', description: 'Number of transactions to retrieve (optional, default: 20)' }
+                    },
+                    required: ['searchGb', 'orderCurrency']
+                }
+            },
+            {
+                name: 'post_place',
+                description: 'Place a limit order (buy/sell) (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        orderCurrency: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' },
+                        units: { type: 'number', description: 'Order quantity' },
+                        price: { type: 'number', description: 'Order price' },
+                        type: { type: 'string', enum: ['bid', 'ask'], description: 'Order type (bid or ask)' }
+                    },
+                    required: ['orderCurrency', 'units', 'price', 'type']
+                }
+            },
+            {
+                name: 'post_cancel',
+                description: 'Cancel an order (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        type: { type: 'string', enum: ['bid', 'ask'], description: 'Order type (bid or ask)' },
+                        orderId: { type: 'string', description: 'Order ID to cancel' },
+                        orderCurrency: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' }
+                    },
+                    required: ['type', 'orderId', 'orderCurrency']
+                }
+            },
+            {
+                name: 'post_market_buy',
+                description: 'Place a market buy order (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        units: { type: 'number', description: 'Quantity to buy' },
+                        orderCurrency: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' }
+                    },
+                    required: ['units', 'orderCurrency']
+                }
+            },
+            {
+                name: 'post_market_sell',
+                description: 'Place a market sell order (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        units: { type: 'number', description: 'Quantity to sell' },
+                        orderCurrency: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)' }
+                    },
+                    required: ['units', 'orderCurrency']
+                }
+            },
+            {
+                name: 'post_withdrawal_coin',
+                description: 'Request a coin withdrawal (Private)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        units: { type: 'number', description: 'Withdrawal quantity' },
+                        address: { type: 'string', description: 'Withdrawal address' },
+                        currency: { type: 'string', description: 'Cryptocurrency symbol (e.g. BTC, ETH)', default: 'BTC' },
+                        destination: { type: 'string', description: 'Destination tag/memo (optional, if required)' }
+                    },
+                    required: ['units', 'address']
+                }
+            },
+            {
+                name: 'post_withdrawal_krw',
+                description: 'Request a KRW withdrawal (Private, Deprecated by Bithumb)',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        bank: { type: 'string', description: 'Bank code and name (e.g., 004_은행)' },
+                        account: { type: 'string', description: 'Account number' },
+                        price: { type: 'number', description: 'Withdrawal amount' }
+                    },
+                    required: ['bank', 'account', 'price']
+                }
+            }
+        ];
+        this.server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({ tools }));
         this.server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
+            const args = request.params.arguments || {};
+            let result; // To store the result from API call
             try {
                 switch (request.params.name) {
                     case 'get_ticker':
-                        // Call the specific getTicker method from ApiBithumb
-                        // Explicitly cast currency argument to string
-                        const ticker = await this.bithumbApi.getTicker(request.params.arguments?.currency || 'BTC');
-                        return {
-                            content: [{ type: 'text', text: JSON.stringify(ticker, null, 2) }]
-                        };
+                        result = await this.bithumbApi.getTicker(args.coinCode);
+                        break;
+                    case 'get_orderbook':
+                        result = await this.bithumbApi.getOrderBook(args.coinCode);
+                        break;
+                    case 'get_transaction_history':
+                        result = await this.bithumbApi.getTransactionHistory(args.coinCode);
+                        break;
+                    case 'get_assets_status':
+                        result = await this.bithumbApi.getAssetsStatus(args.orderCurrency);
+                        break;
+                    case 'get_btci':
+                        result = await this.bithumbApi.getBtci();
+                        break;
+                    case 'get_candlestick':
+                        result = await this.bithumbApi.GetCandlestick(args.orderCurrency, args.paymentCurrency, // Cast to expected type
+                        args.chartIntervals // Cast to expected type
+                        );
+                        break;
+                    case 'post_account':
+                        result = await this.bithumbApi.postAccount(args.coinCode);
+                        break;
                     case 'get_balance':
-                        // Call postBalance method from the new ApiBithumb class
-                        // Pass 'ALL' to get balance for all currencies, or specify like 'BTC'
-                        // The postBalance method expects the coin code as argument
-                        const balance = await this.bithumbApi.postBalance('ALL');
-                        return {
-                            content: [{ type: 'text', text: JSON.stringify(balance, null, 2) }]
+                        result = await this.bithumbApi.postBalance(args.coinCode || 'ALL');
+                        break;
+                    case 'post_wallet_address':
+                        result = await this.bithumbApi.postWalletAddress(args.coinCode);
+                        break;
+                    case 'post_ticker_user':
+                        result = await this.bithumbApi.postTickerUser(args.orderCurrency);
+                        break;
+                    case 'post_orders':
+                        // Construct params object safely using if checks
+                        const orderParams = {
+                            order_currency: args.order_currency,
+                            // payment_currency removed
                         };
+                        if (args.orderId)
+                            orderParams.orderId = args.orderId; // Corrected name
+                        if (args.type)
+                            orderParams.type = args.type;
+                        if (args.count)
+                            orderParams.count = args.count;
+                        // Correctly handle 'after' as a number
+                        if (args.after !== undefined && args.after !== null) {
+                            const afterNum = Number(args.after); // Convert to number
+                            if (!isNaN(afterNum)) {
+                                orderParams.after = afterNum;
+                            }
+                            else {
+                                // Handle error: 'after' argument is not a valid number
+                                throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, "'after' argument must be a number.");
+                            }
+                        }
+                        result = await this.bithumbApi.postOrders(orderParams);
+                        break;
+                    case 'post_order_detail':
+                        result = await this.bithumbApi.postOrderDetail(args.orderId, args.orderCurrency);
+                        break;
+                    case 'post_user_transactions':
+                        result = await this.bithumbApi.postUserTransactions(args.searchGb, args.orderCurrency, args.offset, args.count);
+                        break;
+                    case 'post_place':
+                        result = await this.bithumbApi.postPlace(args.orderCurrency, args.units, args.price, args.type // Cast to expected type
+                        );
+                        break;
+                    case 'post_cancel':
+                        result = await this.bithumbApi.postCancel(args.type, // Cast to expected type
+                        args.orderId, args.orderCurrency);
+                        break;
+                    case 'post_market_buy':
+                        result = await this.bithumbApi.postMarketBuy(args.units, args.orderCurrency);
+                        break;
+                    case 'post_market_sell':
+                        result = await this.bithumbApi.postMarketSell(args.units, args.orderCurrency);
+                        break;
+                    case 'post_withdrawal_coin':
+                        result = await this.bithumbApi.postWithdrawalCoin(args.units, args.address, args.currency, args.destination);
+                        break;
+                    case 'post_withdrawal_krw':
+                        result = await this.bithumbApi.postWithdrawalKrw(args.bank, args.account, args.price);
+                        break;
                     default:
                         throw new types_js_1.McpError(types_js_1.ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
                 }
+                // Return successful result
+                return {
+                    content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+                };
             }
             catch (error) { // Explicitly type error as any
                 // Handle potential errors from ApiBithumb which might not be Axios errors directly
