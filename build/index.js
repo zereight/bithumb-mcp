@@ -1,15 +1,12 @@
 #!/usr/bin/env node
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
-const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 // Import the new ApiBithumb class
-const index_js_2 = __importDefault(require("./bitThumb/index.js"));
+import ApiBithumb from './bitThumb/index.js';
 // Import SDK types
-const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
+import { CallToolRequestSchema, ListToolsRequestSchema, McpError, ErrorCode
+// ToolDefinition removed as it's not exported from sdk/types.js
+ } from '@modelcontextprotocol/sdk/types.js';
 // 환경 변수 설정 확인 및 타입 강제
 const API_KEY = process.env.BITHUMB_API_KEY;
 const SECRET_KEY = process.env.BITHUMB_SECRET_KEY;
@@ -19,7 +16,7 @@ if (!API_KEY || !SECRET_KEY) {
 // MCP 서버 클래스
 class BithumbMCPServer {
     constructor() {
-        this.server = new index_js_1.Server({
+        this.server = new Server({
             name: 'bithumb-mcp',
             version: '1.0.0'
         }, {
@@ -29,7 +26,7 @@ class BithumbMCPServer {
             }
         });
         // Initialize the new ApiBithumb class, providing the paymentCurrency
-        this.bithumbApi = new index_js_2.default(API_KEY, SECRET_KEY, 'KRW'); // Assuming KRW as default payment currency
+        this.bithumbApi = new ApiBithumb(API_KEY, SECRET_KEY, 'KRW'); // Assuming KRW as default payment currency
         this.setupToolHandlers();
         this.server.onerror = (error) => console.error('[Bithumb MCP Error]', error);
         process.on('SIGINT', async () => {
@@ -266,8 +263,8 @@ class BithumbMCPServer {
                 }
             }
         ];
-        this.server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({ tools }));
-        this.server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
+        this.server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
+        this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const args = request.params.arguments || {};
             let result; // To store the result from API call
             try {
@@ -324,7 +321,7 @@ class BithumbMCPServer {
                             }
                             else {
                                 // Handle error: 'after' argument is not a valid number
-                                throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, "'after' argument must be a number.");
+                                throw new McpError(ErrorCode.InvalidParams, "'after' argument must be a number.");
                             }
                         }
                         result = await this.bithumbApi.postOrders(orderParams);
@@ -356,7 +353,7 @@ class BithumbMCPServer {
                         result = await this.bithumbApi.postWithdrawalKrw(args.bank, args.account, args.price);
                         break;
                     default:
-                        throw new types_js_1.McpError(types_js_1.ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
+                        throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
                 }
                 // Return successful result
                 return {
@@ -366,12 +363,12 @@ class BithumbMCPServer {
             catch (error) { // Explicitly type error as any
                 // Handle potential errors from ApiBithumb which might not be Axios errors directly
                 // The ApiBithumb class already stringifies the error, so we can use error.message
-                throw new types_js_1.McpError(types_js_1.ErrorCode.InternalError, `Bithumb API error: ${error.message}`);
+                throw new McpError(ErrorCode.InternalError, `Bithumb API error: ${error.message}`);
             }
         });
     }
     async run() {
-        const transport = new stdio_js_1.StdioServerTransport();
+        const transport = new StdioServerTransport();
         await this.server.connect(transport);
         console.error('Bithumb MCP server running on stdio');
     }
