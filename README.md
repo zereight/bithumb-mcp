@@ -28,7 +28,7 @@ Add the following configuration to your MCP settings file (e.g., `mcp_settings.j
       "command": "npx",
       "args": [
         "-y",
-        "@zereight/bithumb-mcp"
+        "@zereight/bithumb-mcp@latest"
       ],
       "env": {
         "BITHUMB_API_KEY": "YOUR_BITHUMB_API_KEY", // Required
@@ -40,7 +40,7 @@ Add the following configuration to your MCP settings file (e.g., `mcp_settings.j
 }
 ```
 
-Replace placeholder values like `"YOUR_BITHUMB_API_KEY"` and `"YOUR_BITHUMB_SECRET_KEY"` with your actual Bithumb API credentials.
+> **Note**: Always use `@latest` tag to ensure you are using the most recent version with all bug fixes and improvements.
 
 ### Using with Cursor (or direct CLI)
 

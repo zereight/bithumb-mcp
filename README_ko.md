@@ -2,13 +2,21 @@
 
 ## @zereight/bithumb-mcp
 
-빗썸 MCP (모델 컨텍스트 프로토콜) 서버. 빗썸 API와 상호작용하여 암호화폐 정보를 가져오고 거래를 관리할 수 있습니다.
+Bithumb MCP (Model Context Protocol) 서버입니다. 빗썸 API와 상호작용하여 암호화폐 정보를 가져오고 거래를 관리할 수 있습니다.
 
 ## 사용법
 
-### Claude, Roo Code, Cline 등과 함께 사용하기
+### Smithery를 통한 설치
 
-다음 구성을 MCP 설정 파일(예: `mcp_settings.json`)에 추가하세요:
+[Smithery](https://smithery.ai/server/@zereight/bithumb-mcp)를 통해 Claude Desktop에 자동으로 bithumb-mcp를 설치하려면:
+
+```bash
+npx -y @smithery/cli install @zereight/bithumb-mcp --client claude
+```
+
+### Claude, Roo Code, Cline 등에서 사용하기
+
+MCP 설정 파일(예: `mcp_settings.json`)에 다음 구성을 추가하세요:
 
 ```json
 {
@@ -17,7 +25,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "@zereight/bithumb-mcp"
+        "@zereight/bithumb-mcp@latest"
       ],
       "env": {
         "BITHUMB_API_KEY": "YOUR_BITHUMB_API_KEY", // 필수
@@ -29,7 +37,7 @@
 }
 ```
 
-`"YOUR_BITHUMB_API_KEY"`와 `"YOUR_BITHUMB_SECRET_KEY"`를 실제 빗썸 API 자격 증명으로 교체하세요.
+> **참고**: 항상 `@latest` 태그를 사용하여 모든 버그 수정과 개선 사항이 포함된 최신 버전을 사용하세요.
 
 ### Cursor(또는 직접 CLI)와 함께 사용하기
 
