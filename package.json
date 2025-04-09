@@ -1,6 +1,6 @@
 {
   "name": "@zereight/bithumb-mcp",
-  "version": "1.0.3",
+  "version": "1.0.6",
   "description": "MCP server for using the Bithumb API",
   "license": "MIT",
   "author": "zereight",
@@ -24,7 +24,9 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.8.0",
     "@types/node-fetch": "^2.6.12",
+    "axios": "^1.8.4",
     "node-fetch": "^3.3.2",
+    "query-string": "^9.1.1",
     "zod-to-json-schema": "^3.23.5"
   },
   "devDependencies": {
