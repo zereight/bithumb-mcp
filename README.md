@@ -1,14 +1,16 @@
-# 빗썸 MCP 서버
+# Bithumb MCP Server
+
+[Korean version available here](README_ko.md)
 
 ## @zereight/bithumb-mcp
 
-빗썸 MCP (모델 컨텍스트 프로토콜) 서버. 빗썸 API와 상호작용하여 암호화폐 정보를 가져오고 거래를 관리할 수 있습니다.
+Bithumb MCP (Model Context Protocol) Server. Allows interaction with the Bithumb API to fetch cryptocurrency information and manage transactions.
 
-## 사용법
+## Usage
 
-### Claude, Roo Code, Cline 등과 함께 사용하기
+### Using with Claude, Roo Code, Cline, etc.
 
-다음 구성을 MCP 설정 파일(예: `mcp_settings.json`)에 추가하세요:
+Add the following configuration to your MCP settings file (e.g., `mcp_settings.json`):
 
 ```json
 {
@@ -20,8 +22,8 @@
         "@zereight/bithumb-mcp"
       ],
       "env": {
-        "BITHUMB_API_KEY": "YOUR_BITHUMB_API_KEY", // 필수
-        "BITHUMB_SECRET_KEY": "YOUR_BITHUMB_SECRET_KEY" // 필수
+        "BITHUMB_API_KEY": "YOUR_BITHUMB_API_KEY", // Required
+        "BITHUMB_SECRET_KEY": "YOUR_BITHUMB_SECRET_KEY" // Required
       },
       "disabled": false
     }
@@ -29,11 +31,11 @@
 }
 ```
 
-`"YOUR_BITHUMB_API_KEY"`와 `"YOUR_BITHUMB_SECRET_KEY"`를 실제 빗썸 API 자격 증명으로 교체하세요.
+Replace placeholder values like `"YOUR_BITHUMB_API_KEY"` and `"YOUR_BITHUMB_SECRET_KEY"` with your actual Bithumb API credentials.
 
-### Cursor(또는 직접 CLI)와 함께 사용하기
+### Using with Cursor (or direct CLI)
 
-Cursor와 함께 사용하거나 직접 실행할 때는 환경 변수를 설정하고 서버를 다음과 같이 실행할 수 있습니다:
+When using with Cursor or running directly, you can set up environment variables and run the server as follows:
 
 ```bash
 env BITHUMB_API_KEY=YOUR_BITHUMB_API_KEY \
@@ -41,150 +43,150 @@ env BITHUMB_API_KEY=YOUR_BITHUMB_API_KEY \
     npx @zereight/bithumb-mcp
 ```
 
-- `BITHUMB_API_KEY` (필수): 빗썸 API 키.
-- `BITHUMB_SECRET_KEY` (필수): 빗썸 비밀 키.
+- `BITHUMB_API_KEY` (Required): Your Bithumb API key.
+- `BITHUMB_SECRET_KEY` (Required): Your Bithumb secret key.
 
-## 도구 목록 🛠️
+## Tools 🛠️
 
 1. **`get_ticker`**
-   - 암호화폐 시세 정보를 가져옵니다.
-   - 입력:
-     - `coinCode` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-   - 반환: 시세 정보 (JSON 문자열).
+   - Fetches cryptocurrency ticker information.
+   - Inputs:
+     - `coinCode` (string, required): The cryptocurrency symbol (e.g., BTC, ETH).
+   - Returns: Ticker information (JSON string).
 
 2. **`get_orderbook`**
-   - 주문서 정보를 가져옵니다.
-   - 입력:
-     - `coinCode` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-   - 반환: 주문서 세부정보 (JSON 문자열).
+   - Fetches order book information.
+   - Inputs:
+     - `coinCode` (string, required): The cryptocurrency symbol (e.g., BTC, ETH).
+   - Returns: Order book details (JSON string).
 
 3. **`get_transaction_history`**
-   - 최근 거래 내역을 가져옵니다.
-   - 입력:
-     - `coinCode` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-   - 반환: 거래 내역 (JSON 문자열).
+   - Fetches recent transaction history.
+   - Inputs:
+     - `coinCode` (string, required): The cryptocurrency symbol (e.g., BTC, ETH).
+   - Returns: Transaction history (JSON string).
 
 4. **`get_assets_status`**
-   - 자산 입출금 상태를 가져옵니다.
-   - 입력:
-     - `orderCurrency` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-   - 반환: 입출금 상태 (JSON 문자열).
+   - Fetches asset deposit/withdrawal status.
+   - Inputs:
+     - `orderCurrency` (string, required): The cryptocurrency symbol (e.g., BTC, ETH).
+   - Returns: Deposit/withdrawal status (JSON string).
 
 5. **`get_candlestick`**
-   - 캔들스틱 데이터를 가져옵니다.
-   - 입력:
-     - `orderCurrency` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-     - `paymentCurrency` (문자열, 필수): 결제 통화 (예: KRW, BTC).
-     - `chartIntervals` (문자열, 필수): 차트 간격 (예: '1m', '3m').
-   - 반환: 캔들스틱 데이터 (JSON 문자열).
+   - Fetches candlestick data.
+   - Inputs:
+     - `orderCurrency` (string, required): The cryptocurrency symbol (e.g., BTC, ETH).
+     - `paymentCurrency` (string, required): Payment currency (e.g., KRW, BTC).
+     - `chartIntervals` (string, required): Chart interval (e.g., '1m', '3m').
+   - Returns: Candlestick data (JSON string).
 
 6. **`post_account`**
-   - 회원 계좌 정보 및 수수료를 가져옵니다.
-   - 입력:
-     - `coinCode` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-   - 반환: 계좌 정보 (JSON 문자열).
+   - Fetches member account information and fees.
+   - Inputs:
+     - `coinCode` (string, required): The cryptocurrency symbol (e.g., BTC, ETH).
+   - Returns: Account information (JSON string).
 
 7. **`get_balance`**
-   - 계좌 잔액을 가져옵니다.
-   - 입력:
-     - `coinCode` (문자열, 선택적): 암호화폐 심볼 (예: BTC, ETH) 또는 ALL.
-   - 반환: 잔액 정보 (JSON 문자열).
+   - Fetches account balance.
+   - Inputs:
+     - `coinCode` (string, optional): The cryptocurrency symbol (e.g., BTC, ETH) or ALL.
+   - Returns: Balance information (JSON string).
 
 8. **`post_wallet_address`**
-   - 회원의 암호화폐 입금 지갑 주소를 가져옵니다.
-   - 입력:
-     - `coinCode` (문자열, 선택적): 암호화폐 심볼 (예: BTC, ETH).
-   - 반환: 지갑 주소 (JSON 문자열).
+   - Fetches member's coin deposit wallet address.
+   - Inputs:
+     - `coinCode` (string, optional): The cryptocurrency symbol (e.g., BTC, ETH).
+   - Returns: Wallet address (JSON string).
 
 9. **`post_ticker_user`**
-   - 회원의 최근 가상자산 거래 정보를 가져옵니다.
-   - 입력:
-     - `orderCurrency` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-   - 반환: 거래 정보 (JSON 문자열).
+   - Fetches member's recent virtual asset transaction information.
+   - Inputs:
+     - `orderCurrency` (string, required): The cryptocurrency symbol (e.g., BTC, ETH).
+   - Returns: Transaction information (JSON string).
 
 10. **`post_orders`**
-    - 회원의 주문 세부정보를 가져옵니다.
-    - 입력:
-      - `order_currency` (문자열, 필수): 주문 통화 심볼.
-      - `orderId` (문자열, 선택적): 주문 ID.
-      - `type` (문자열, 선택적): 주문 유형 (bid 또는 ask).
-      - `count` (숫자, 선택적): 가져올 주문 수.
-      - `after` (숫자, 선택적): 이 타임스탬프 이후의 주문을 가져옵니다.
-    - 반환: 주문 세부정보 (JSON 문자열).
+    - Fetches member's order details.
+    - Inputs:
+      - `order_currency` (string, required): Order currency symbol.
+      - `orderId` (string, optional): Order ID.
+      - `type` (string, optional): Order type (bid or ask).
+      - `count` (number, optional): Number of orders to retrieve.
+      - `after` (number, optional): Retrieve orders after this timestamp.
+    - Returns: Order details (JSON string).
 
 11. **`post_order_detail`**
-    - 특정 회원 주문의 세부정보를 가져옵니다.
-    - 입력:
-      - `orderId` (문자열, 필수): 주문 ID.
-      - `orderCurrency` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-    - 반환: 주문 세부정보 (JSON 문자열).
+    - Fetches details of a specific member order.
+    - Inputs:
+      - `orderId` (string, required): Order ID.
+      - `orderCurrency` (string, required): Cryptocurrency symbol (e.g., BTC, ETH).
+    - Returns: Order details (JSON string).
 
 12. **`post_user_transactions`**
-    - 회원의 거래 완료 내역을 가져옵니다.
-    - 입력:
-      - `searchGb` (숫자, 필수): 검색 유형 (0: 전체, 1: 매수 완료 등).
-      - `orderCurrency` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-      - `offset` (숫자, 선택적): 검색 시작 인덱스.
-      - `count` (숫자, 선택적): 가져올 거래 수.
-    - 반환: 거래 내역 (JSON 문자열).
+    - Fetches member's transaction completion history.
+    - Inputs:
+      - `searchGb` (number, required): Search type (0: all, 1: buy complete, etc.).
+      - `orderCurrency` (string, required): Cryptocurrency symbol (e.g., BTC, ETH).
+      - `offset` (number, optional): Start index for retrieval.
+      - `count» (number, optional): Number of transactions to retrieve.
+    - Returns: Transaction history (JSON string).
 
 13. **`post_place`**
-    - 지정가 주문(매수/매도)을 합니다.
-    - 입력:
-      - `orderCurrency` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-      - `units` (숫자, 필수): 주문 수량.
-      - `price` (숫자, 필수): 주문 가격.
-      - `type` (문자열, 필수): 주문 유형 (bid 또는 ask).
-    - 반환: 주문 확인 (JSON 문자열).
+    - Places a limit order (buy/sell).
+    - Inputs:
+      - `orderCurrency» (string, required): Cryptocurrency symbol (e.g., BTC, ETH).
+      - `units» (number, required): Order quantity.
+      - `price» (number, required): Order price.
+      - `type» (string, required): Order type (bid or ask).
+    - Returns: Order placement confirmation (JSON string).
 
 14. **`post_cancel`**
-    - 주문을 취소합니다.
-    - 입력:
-      - `type` (문자열, 필수): 주문 유형 (bid 또는 ask).
-      - `orderId` (문자열, 필수): 취소할 주문 ID.
-      - `orderCurrency` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-    - 반환: 취소 확인 (JSON 문자열).
+    - Cancels an order.
+    - Inputs:
+      - `type» (string, required): Order type (bid or ask).
+      - `orderId» (string, required): Order ID to cancel.
+      - `orderCurrency» (string, required): Cryptocurrency symbol (e.g., BTC, ETH).
+    - Returns: Cancellation confirmation (JSON string).
 
 15. **`post_market_buy`**
-    - 시장 매수 주문을 합니다.
-    - 입력:
-      - `units` (숫자, 필수): 매수 수량.
-      - `orderCurrency` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-    - 반환: 주문 확인 (JSON 문자열).
+    - Places a market buy order.
+    - Inputs:
+      - `units» (number, required): Quantity to buy.
+      - `orderCurrency» (string, required): Cryptocurrency symbol (e.g., BTC, ETH).
+    - Returns: Order placement confirmation (JSON string).
 
 16. **`post_market_sell`**
-    - 시장 매도 주문을 합니다.
-    - 입력:
-      - `units` (숫자, 필수): 매도 수량.
-      - `orderCurrency` (문자열, 필수): 암호화폐 심볼 (예: BTC, ETH).
-    - 반환: 주문 확인 (JSON 문자열).
+    - Places a market sell order.
+    - Inputs:
+      - `units» (number, required): Quantity to sell.
+      - `orderCurrency» (string, required): Cryptocurrency symbol (e.g., BTC, ETH).
+    - Returns: Order placement confirmation (JSON string).
 
 17. **`post_withdrawal_coin`**
-    - 암호화폐 출금을 요청합니다.
-    - 입력:
-      - `units` (숫자, 필수): 출금 수량.
-      - `address` (문자열, 필수): 출금 주소.
-      - `currency` (문자열, 선택적): 암호화폐 심볼 (예: BTC, ETH).
-      - `destination` (문자열, 선택적): 목적지 태그/메모 (필요한 경우).
-    - 반환: 출금 요청 확인 (JSON 문자열).
+    - Requests a coin withdrawal.
+    - Inputs:
+      - `units» (number, required): Withdrawal quantity.
+      - `address» (string, required): Withdrawal address.
+      - `currency» (string, optional): Cryptocurrency symbol (e.g., BTC, ETH).
+      - `destination» (string, optional): Destination tag/memo (if required).
+    - Returns: Withdrawal request confirmation (JSON string).
 
 18. **`post_withdrawal_krw`**
-    - KRW 출금을 요청합니다 (빗썸에서 더 이상 사용되지 않음).
-    - 입력:
-      - `bank` (문자열, 필수): 은행 코드 및 이름.
-      - `account` (문자열, 필수): 계좌 번호.
-      - `price` (숫자, 필수): 출금 금액.
-    - 반환: 출금 요청 확인 (JSON 문자열).
+    - Requests a KRW withdrawal (Deprecated by Bithumb).
+    - Inputs:
+      - `bank» (string, required): Bank code and name.
+      - `account» (string, required): Account number.
+      - `price» (number, required): Withdrawal amount.
+    - Returns: Withdrawal request confirmation (JSON string).
 
-## 환경 변수 설정
+## Environment Variables
 
-서버를 실행하기 전에 다음 환경 변수를 **설정해야** 합니다:
+Before running the server, you **must** set the following environment variables:
 
 ```
 BITHUMB_API_KEY=YOUR_BITHUMB_API_KEY
 BITHUMB_SECRET_KEY=YOUR_BITHUMB_SECRET_KEY
 ```
 
-## 라이센스
+## License
 
-MIT 라이센스
+MIT License
