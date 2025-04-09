@@ -4,7 +4,8 @@
   "main": "build/index.js",
   "scripts": {
     "build": "tsc && chmod +x build/index.js",
-    "start": "node build/index.js"
+    "start": "node build/index.js",
+    "deploy": "npm run build && npm publish --access public"
   },
   "repository": {
     "type": "git",
