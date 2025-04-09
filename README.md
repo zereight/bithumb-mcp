@@ -1,4 +1,5 @@
 # Bithumb MCP Server
+[![smithery badge](https://smithery.ai/badge/@zereight/bithumb-mcp)](https://smithery.ai/server/@zereight/bithumb-mcp)
 
 [Korean version available here](README_ko.md)
 
@@ -7,6 +8,14 @@
 Bithumb MCP (Model Context Protocol) Server. Allows interaction with the Bithumb API to fetch cryptocurrency information and manage transactions.
 
 ## Usage
+
+### Installing via Smithery
+
+To install bithumb-mcp for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@zereight/bithumb-mcp):
+
+```bash
+npx -y @smithery/cli install @zereight/bithumb-mcp --client claude
+```
 
 ### Using with Claude, Roo Code, Cline, etc.
 
