@@ -1,0 +1,31 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - bithumbApiKey
+      - bithumbSecretKey
+    properties:
+      bithumbApiKey:
+        type: string
+        description: Your BITHUMB API Key
+      bithumbSecretKey:
+        type: string
+        description: Your BITHUMB Secret Key
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({
+      command: 'node',
+      args: ['build/index.js'],
+      env: {
+        BITHUMB_API_KEY: config.bithumbApiKey,
+        BITHUMB_SECRET_KEY: config.bithumbSecretKey
+      }
+    })
+  exampleConfig:
+    bithumbApiKey: example-api-key
+    bithumbSecretKey: example-secret-key
