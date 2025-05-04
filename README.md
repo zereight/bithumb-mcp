@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/zereight-bithumb-mcp-badge.png)](https://mseep.ai/app/zereight-bithumb-mcp)
+
 # Bithumb MCP Server
 [![smithery badge](https://smithery.ai/badge/@zereight/bithumb-mcp)](https://smithery.ai/server/@zereight/bithumb-mcp)
 
